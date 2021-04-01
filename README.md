@@ -131,6 +131,6 @@ class Artifact(pygame.sprite.Sprite):
     #Поместили спрайт в rect и на определенные координаты
     self.rect = self.image.get_rect()
     self.rect.y = y
-    self.rect.x = x   
+    self.rect.x = x
 
 
