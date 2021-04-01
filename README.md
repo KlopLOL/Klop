@@ -1,88 +1,136 @@
 import pygame
 from constants import *
+class Player(pygame.sprite.Sprite):
+  '''Этот класс описывает поведение и управление игроком'''
+
+  #конструктор класса Player
+  def __init__(self, x, y, img = 'anime.png'):
+    super().__init__() 
+  #Загрузка изображение игрока
+  self.image = pygame.image.load(img).convert_alpha()
+  #Указываем положение игрока на экране
+  self.rect = self.image.get_rect()
+  self.rect.y = y
+  self.rect.x = x
+  #Указываем скорость игрока
+  self.change_x = 0
+  self.change_y = 0
+  self.score = 0
+  self.lives = 1
 
 
-class Game:
-    def __init__(self):
-        pygame.init()
-        pygame.mixer.init()
+    
+  self.platforms = pygame.sprite.Group()
+  self.artifacts = pygame.sprite.Group()
 
-        self.clock = pygame.time.Clock()
 
-        self.screen = pygame.display.set_mode([WIN_WIDTH,WIN_HEIGHT])
-        pygame.display.set_caption('Platformer Game')
-        self.background_image = pygame.image.load('background.png').convert()
-        self.all_sprite_list = pygame.sprite.Group()
+  def update(self):
+    #Учитываем гравитацию
+    self.calc_graph()
+    #Пересчет положения спрайта на экране
 
-        #Создание платформ
-        self.platform_list = pygame.sprite.Group()
-        self.create_platfroms()
+    #Смешение вправро-лево
+    self.rect.x += self.change_x
 
-        #Создание артефактов
-        self.artifact_list = pygame.sprite.Group()
-        self.create_artifacts()
+    #Проверка сотлконовения с препятсвиями(по горизонтали)
+    block_hit_list = pygame.sprite.spritecollide(self, self.platforms, False)
+  
+    for block in block_hit_list:
+      #Если персонаж двигался вправо, остановим его слева от препятствия
+      if self.change_x > 0:
+        self.rect.right = block.rect.left
+      #Если персонаж двигался влево, остановим его справа от препятствия 
+      elif self.change_x < 0:
+        self.rect.left = block.rect.right 
 
-        #Создание спрайта игрока
-        self.player = objects.Player(0, 550)
-        self.player.platforms = self.platform_list
-        self.player.artifact = self.artifact_list
-        self.all_sprite_list.add(self.player)
+    #Движение вверх-вниз
+    self.rect.y += self.change_y
+    
+    #Проверка сотлконовения с препятсвиями(по вертикали)
+    block_hit_list = pygame.sprite.spritecollide(self, self.platforms, False)
+  
+    for block in block_hit_list:
+      #Если персонаж двигался вниз, остановим его сверху от препятствия
+      if self.change_y > 0:
+        self.rect.bottom = block.rect.top
+      #Если персонаж двигался вверх, остановим его снизу от препятствия 
+      elif self.change_y < 0:
+        self.rect.top = block.rect.bottom 
+      
+      #Если персонаж столкнулся в прыжке с препятсвием движение должно остановиться
+      self.change_y = 0
+    
+    #Проверка столкновения с артефактом
+    artifact_hit_list = pygame.sprite.spritecollide(self, self.artifacts, False)
 
-    #Создаем платформы и стены
-    def create_platfroms(self):
-        platform_coords = [
-            [200, 450],
-            [200, 500],
-            [200, 550],
-            [200, 600],
-            [300, 450],
-            [300, 500],
-            [300, 450],
-            [450, 450],
-            [900, 250],
-             ]
-        for coord in platform_coords:
-            platform = objects.Platform(coord[0], coord[1], 2)
-            self.platform_list.add(platform)
-            self.all_sprite_list.add(platform)
-    #Создаем монетки
-    def create_artifacts(self):
-        artifacts_coords = [
-            [200, 500],
-            [200, 550],
-            [200, 650],
-            [200, 650],
-            [300, 450],
-            [300, 500],
-            [300, 450],
-            [450, 450],
-            [900, 250],
-
-        ]
-        for coord in artifacts_coords:
-            artifact = objects.Artifact(coord[0], coord[1])
-            self.artifact_list.add(artifact)
-            self.all_sprite_list.add(artifact) 
+    for artifact in artifact_hit_list:
+      self.score += 1
+      artifact.kill()
+  
     
     
-    def run(self):
-        done = False
 
-        self.screen.blit(self.background_image, (0, 0))
-        self.all_sprite_list.draw(self.screen)
 
-        #Запускаем главный экран
-        while not done:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    done = True
-            pygame.display.update()
-            pygame.display.flip() 
-            self.clock.tick(FPS)
-        
-        pygame.quit
+  #Функция расчета гравитации
+  def calc_graph(self):
+    if self.change_y == 0:
+       self.change_y = 1
+    else:
+      #Создаем эффект свободного падения
+      self.change_y += 0.3
+      #Проверяем персонаж на земле или нет
+    if self.rect.y >= WIN_HEIGHT - self.rect.height and self.change_y >= 0:
+      self.change_y = 0
+    #Проверяем выходит ли персонаж за левую границу экрана
+    if self.rect.x < 0:
+        self.rect.x = 0
+        self.change_x = 0
 
-game = Game()
 
-game.run()
+      
+  def jump(self):
+      #Чтобы убедиться что под игроком есть платформа - двигаемся на 2 пикселя вниз
+      self.rect.y += 2
+      platform_hit_list = pygame.sprite.spritecollide(self, self.platforms, False)
+      self.rect.y -= 2
+
+      #Если есть платформа прыгаем
+      if len(platform_hit_list) > 0 or self.rect.bottom >= WIN_HEIGHT:
+          self.change_y = - 11   
+
+   
+  def go_left(self):
+    #Движение влево
+    self.change_x = -5
+  def go_right(self):
+    #Движение вправо
+    self.change_x = 5
+  def stop(self):
+      #Конец движения по горизонатали
+      self.change_x = 0
+
+
+class Platform(pygame.sprite.Sprite):
+  images = ['platform_1.png', 'platform_2.png', 'platform_3.png']
+  #Конструктор класса платформы, создание препятсвий для пользователей по кооторым он может по ним но чне через них
+  def __init__(self, x, y, type):
+    super().__init__()
+    #Загрузка изображений спрайта(плтформ)
+    self.image = pygame.image.load(Platform.images[0]).convert_alpha()
+
+    #Поместили спрайт в rect и на определенные координаты
+    self.rect = self.image.get_rect()
+    self.rect.y = y
+    self.rect.x = x
+class Artifact(pygame.sprite.Sprite): 
+  def __init__(self, x, y, img = 'coin.png'):
+    super().__init__()
+    #Загрузка изображений спрайта(артифакта)
+    self.image = pygame.image.load(img).convert_alpha()
+
+    #Поместили спрайт в rect и на определенные координаты
+    self.rect = self.image.get_rect()
+    self.rect.y = y
+    self.rect.x = x   
+
 
